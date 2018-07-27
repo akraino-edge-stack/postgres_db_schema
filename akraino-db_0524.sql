@@ -17,6 +17,38 @@
 
 CREATE SCHEMA akraino
   AUTHORIZATION postgres;
+
+
+CREATE TABLE akraino.pod
+(
+   pod_id bigint not NULL, 
+   pod_name text not NULL,
+   CONSTRAINT pod_id_pk PRIMARY KEY (pod_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.pod
+  OWNER TO postgres; 
+
+CREATE TABLE akraino.rack
+(
+   rack_id bigint not NULL, 
+   rack_name text not NULL,
+   rack_personality text not NULL,
+   pod_id bigint not null,
+   CONSTRAINT rack_id_pk PRIMARY KEY (rack_id),
+    CONSTRAINT pod_id_fk FOREIGN KEY (pod_id)
+      REFERENCES akraino.pod (pod_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.rack
+  OWNER TO postgres; 
   
 CREATE TABLE akraino.usersession
 (
@@ -156,12 +188,16 @@ WITH (
 ALTER TABLE akraino.onap
   OWNER TO postgres;
   
+CREATE SEQUENCE akraino.seq_pod
+  START WITH 1 INCREMENT BY 1;
 
+  CREATE SEQUENCE akraino.seq_rack
+  START WITH 1 INCREMENT BY 1;
 
 insert into akraino.region values(1, 'US Northeast', now(), user, now(), user);
 
-insert into akraino.edge_site( edge_site_id, edge_site_name, edge_site_blueprint, edge_site_ip, edge_site_user, edge_site_pwd, input_file, crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(1, 'MTN1', 'Rover', '192.168.2.41', 'root', 'akraino,d', bytea(pg_read_file('node41rc')), user,  now(), user, now(),1);
-insert into akraino.edge_site( edge_site_id, edge_site_name, edge_site_blueprint, edge_site_ip, edge_site_user, edge_site_pwd, input_file, crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(2, 'MTN2', 'Unicycle', '192.168.2.41', 'root', 'akraino,d', bytea(pg_read_file('unicycle.yaml')), user,  now(), user, now(),1);
+insert into akraino.edge_site( edge_site_id, edge_site_name, crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(1, 'MTN1', user,  now(), user, now(),1);
+insert into akraino.edge_site( edge_site_id, edge_site_name,  crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(2, 'MTN2', user,  now(), user, now(),1);
 
 
 insert into akraino.edge_site_input_yaml_files values (1, 'mycontrolplane_hp', '/profiles/host/',bytea(pg_read_file('profiles/host/mycontrolplane_hp.j2')), now(), user, now(), user);
