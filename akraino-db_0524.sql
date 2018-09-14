@@ -15,10 +15,33 @@
  */
 
 
-CREATE SCHEMA akraino
-  AUTHORIZATION postgres;
+drop sequence IF EXISTS akraino.seq_pod;
+drop sequence IF EXISTS akraino.seq_rack;
+drop sequence IF EXISTS akraino.seq_brack;
+drop sequence IF EXISTS akraino.seq_node;
+drop sequence IF EXISTS akraino.seq_software;
+drop sequence IF EXISTS akraino.seq_hardware;
+drop sequence IF EXISTS akraino.seq_onap;
+drop sequence IF EXISTS akraino.seq_blueprint;
+drop sequence IF EXISTS akraino.seq_edgeNode;
 
-
+drop table IF EXISTS akraino.onap;
+drop table IF EXISTS akraino.usersession;
+drop table IF EXISTS akraino.edgenode_software;
+drop table IF EXISTS akraino.edgenode;
+drop table IF EXISTS akraino.blueprint_rack;
+drop table IF EXISTS akraino.blueprint;
+drop table IF EXISTS akraino.genericrack;
+drop table IF EXISTS akraino.software;
+drop table IF EXISTS akraino.hardware;
+drop table IF EXISTS akraino.pod;
+drop table IF EXISTS akraino.edge_site_input_yaml_files;
+drop table IF EXISTS akraino.edge_site;
+drop table IF EXISTS akraino.region;
+ 
+CREATE SCHEMA IF NOT EXISTS akraino
+ AUTHORIZATION postgres;
+ 
 CREATE TABLE akraino.pod
 (
    pod_id bigint not NULL, 
