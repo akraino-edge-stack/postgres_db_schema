@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e98c2498_65c5ed0f",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 45
+      },
+      "writtenOn": "2018-11-14T20:14:36Z",
+      "side": 1,
+      "message": "This needs to be spelled out more.\nWhat is this change for?  You multiple lines if needed.",
+      "revId": "3dce12668dfab1da55d5bf4ecf504e451a09650f",
+      "serverId": "4cada01b-0314-4fe0-84a1-f9ddc89863f9",
+      "unresolved": false
+    }
+  ]
+}
