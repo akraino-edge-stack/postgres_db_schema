@@ -25,6 +25,9 @@ drop sequence IF EXISTS akraino.seq_onap;
 drop sequence IF EXISTS akraino.seq_blueprint;
 drop sequence IF EXISTS akraino.seq_edgeNode;
 drop sequence IF EXISTS akraino.seq_yamltemplate;
+drop sequence IF EXISTS akraino.seq_site;
+drop sequence IF EXISTS akraino.seq_podmetrics;
+drop sequence IF EXISTS akraino.seq_podmetrics_logs;
 
 drop table IF EXISTS akraino.onap;
 drop table IF EXISTS akraino.usersession;
@@ -39,6 +42,8 @@ drop table IF EXISTS akraino.pod;
 drop table IF EXISTS akraino.edge_site_template_file;
 drop table IF EXISTS akraino.edge_site;
 drop table IF EXISTS akraino.region;
+drop table IF EXISTS akraino.podmetrics;
+drop table IF EXISTS akraino.podmetrics_logs;
  
 CREATE SCHEMA IF NOT EXISTS akraino
  AUTHORIZATION postgres;
@@ -47,6 +52,7 @@ CREATE TABLE akraino.pod
 (
    pod_id bigint not NULL, 
    pod_name text not NULL unique,
+   pod_type text not null,
    CONSTRAINT pod_id_pk PRIMARY KEY (pod_id)
 ) 
 WITH (
@@ -261,6 +267,10 @@ CREATE TABLE akraino.edge_site
    upd_dt timestamptz NOT NULL, 
    upd_login_id text NOT NULL, 
    region_id bigint NOT NULL,
+   deploy_mode text NULL,
+   singlenode_createyaml_status text NULL,
+   singlenode_transferfile_status text NULL,
+   singlenode_deploy_status text NULL,
    CONSTRAINT edge_site_id_pk PRIMARY KEY (edge_site_id),
    CONSTRAINT region_id_fk FOREIGN KEY (region_id)
       REFERENCES akraino.region (region_id) MATCH SIMPLE
@@ -274,7 +284,7 @@ WITH (
 ALTER TABLE akraino.edge_site
   OWNER TO postgres;
   
-
+ 
 CREATE TABLE akraino.edge_site_template_file
 (   
    yamltemplate_id bigint NOT NULL,
@@ -323,6 +333,49 @@ WITH (
 ALTER TABLE akraino.onap
   OWNER TO postgres;
   
+CREATE TABLE akraino.podmetrics
+(
+   podmetrics_id bigint not NULL, 
+   tstart timestamptz not NULL,
+   tstop timestamptz not null,
+   name text not NULL, 
+   gen_type text null,
+   chomp_log text null,
+   logcount int null,
+   latency text null,
+   latency_max float null,
+   latency_min float null,
+   latency_avg float null,
+   CONSTRAINT podmetrics_id_pk PRIMARY KEY (podmetrics_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.pod
+  OWNER TO postgres; 
+
+CREATE TABLE akraino.podmetrics_logs
+(
+   podmetrics_logs_id bigint not NULL, 
+   tstart timestamptz not NULL,
+   tstop timestamptz not null,
+   signature text NULL, 
+   sysdata_pod text NULL, 
+   sysdata_host text NULL, 
+   sysdata_namespace text NULL, 
+   metadata_pod text NULL, 
+   metadata_latency text NULL, 
+   metadata_namespace text NULL, 
+   CONSTRAINT podmetrics_logs_id_pk PRIMARY KEY (podmetrics_logs_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.pod
+  OWNER TO postgres;
+  
 CREATE SEQUENCE akraino.seq_pod
   START WITH 1 INCREMENT BY 1;
 
@@ -353,6 +406,14 @@ CREATE SEQUENCE akraino.seq_edgeNode
 CREATE SEQUENCE akraino.seq_yamltemplate
   START WITH 1 INCREMENT BY 1;  
   
+CREATE SEQUENCE akraino.seq_site
+  START WITH 1 INCREMENT BY 1;  
+
+CREATE SEQUENCE akraino.seq_podmetrics
+  START WITH 1 INCREMENT BY 1;  
+
+CREATE SEQUENCE akraino.seq_podmetrics_logs
+  START WITH 1 INCREMENT BY 1;  
   
 insert into akraino.region values(1, 'US Northeast', now(), user, now(), user);
 
