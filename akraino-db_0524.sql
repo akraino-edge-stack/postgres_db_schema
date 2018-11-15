@@ -53,6 +53,8 @@ CREATE TABLE akraino.pod
    pod_id bigint not NULL, 
    pod_name text not NULL unique,
    pod_type text not null,
+   pod_json bytea NULL,
+   site_id bigint NOT NULL,
    CONSTRAINT pod_id_pk PRIMARY KEY (pod_id)
 ) 
 WITH (
@@ -262,10 +264,10 @@ CREATE TABLE akraino.edge_site
    tempest_status text NULL,
    vcdn_status text NULL,
    deploy_dt timestamptz NULL,
-   crt_dt timestamptz NOT NULL, 
-   crt_login_id text NOT NULL, 
-   upd_dt timestamptz NOT NULL, 
-   upd_login_id text NOT NULL, 
+   crt_dt timestamptz NULL, 
+   crt_login_id text NULL, 
+   upd_dt timestamptz NULL, 
+   upd_login_id text NULL, 
    region_id bigint NOT NULL,
    deploy_mode text NULL,
    singlenode_createyaml_status text NULL,
@@ -407,7 +409,7 @@ CREATE SEQUENCE akraino.seq_yamltemplate
   START WITH 1 INCREMENT BY 1;  
   
 CREATE SEQUENCE akraino.seq_site
-  START WITH 1 INCREMENT BY 1;  
+  START WITH 3 INCREMENT BY 1;  
 
 CREATE SEQUENCE akraino.seq_podmetrics
   START WITH 1 INCREMENT BY 1;  
