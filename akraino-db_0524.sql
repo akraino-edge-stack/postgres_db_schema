@@ -15,14 +15,46 @@
  */
 
 
-CREATE SCHEMA akraino
-  AUTHORIZATION postgres;
+drop sequence IF EXISTS akraino.seq_pod;
+drop sequence IF EXISTS akraino.seq_rack;
+drop sequence IF EXISTS akraino.seq_brack;
+drop sequence IF EXISTS akraino.seq_node;
+drop sequence IF EXISTS akraino.seq_software;
+drop sequence IF EXISTS akraino.seq_hardware;
+drop sequence IF EXISTS akraino.seq_onap;
+drop sequence IF EXISTS akraino.seq_blueprint;
+drop sequence IF EXISTS akraino.seq_edgeNode;
+drop sequence IF EXISTS akraino.seq_yamltemplate;
+drop sequence IF EXISTS akraino.seq_site;
+drop sequence IF EXISTS akraino.seq_podmetrics;
+drop sequence IF EXISTS akraino.seq_podmetrics_logs;
 
-
+drop table IF EXISTS akraino.onap;
+drop table IF EXISTS akraino.usersession;
+drop table IF EXISTS akraino.edgenode_software;
+drop table IF EXISTS akraino.edgenode;
+drop table IF EXISTS akraino.blueprint_rack;
+drop table IF EXISTS akraino.blueprint;
+drop table IF EXISTS akraino.genericrack;
+drop table IF EXISTS akraino.software;
+drop table IF EXISTS akraino.hardware;
+drop table IF EXISTS akraino.pod;
+drop table IF EXISTS akraino.edge_site_template_file;
+drop table IF EXISTS akraino.edge_site;
+drop table IF EXISTS akraino.region;
+drop table IF EXISTS akraino.podmetrics;
+drop table IF EXISTS akraino.podmetrics_logs;
+ 
+CREATE SCHEMA IF NOT EXISTS akraino
+ AUTHORIZATION postgres;
+ 
 CREATE TABLE akraino.pod
 (
    pod_id bigint not NULL, 
-   pod_name text not NULL,
+   pod_name text not NULL unique,
+   pod_type text not null,
+   pod_json bytea NULL,
+   site_id bigint NOT NULL,
    CONSTRAINT pod_id_pk PRIMARY KEY (pod_id)
 ) 
 WITH (
@@ -32,13 +64,42 @@ WITH (
 ALTER TABLE akraino.pod
   OWNER TO postgres; 
 
-CREATE TABLE akraino.rack
+CREATE TABLE akraino.hardware
 (
-   rack_id bigint not NULL, 
+   hardware_id bigint not NULL, 
+   hardware_name text not NULL,
+   hardware_type text not null,
+   CONSTRAINT hardware_id_pk PRIMARY KEY (hardware_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.hardware
+  OWNER TO postgres;    
+
+CREATE TABLE akraino.software
+(
+   software_id bigint not NULL, 
+   software_name text not NULL,
+   software_version text not null,
+   CONSTRAINT software_id_pk PRIMARY KEY (software_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.software
+  OWNER TO postgres;    
+  
+  
+CREATE TABLE akraino.genericrack
+(
+   grack_id bigint not NULL, 
    rack_name text not NULL,
    rack_personality text not NULL,
-   pod_id bigint not null,
-   CONSTRAINT rack_id_pk PRIMARY KEY (rack_id),
+   pod_id bigint null,
+   CONSTRAINT grack_id_pk PRIMARY KEY (grack_id),
     CONSTRAINT pod_id_fk FOREIGN KEY (pod_id)
       REFERENCES akraino.pod (pod_id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION
@@ -47,8 +108,84 @@ WITH (
   OIDS = FALSE
 )
 ;
-ALTER TABLE akraino.rack
+ALTER TABLE akraino.genericrack
   OWNER TO postgres; 
+  
+
+CREATE TABLE akraino.blueprint
+(
+   blueprint_id bigint not NULL, 
+   blueprint_name text not NULL,
+   CONSTRAINT blueprint_id_pk PRIMARY KEY (blueprint_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.blueprint
+  OWNER TO postgres;   
+
+CREATE TABLE akraino.blueprint_rack
+(
+   brack_id bigint not NULL, 
+   blueprint_id bigint null,
+   grack_id bigint null,
+   CONSTRAINT brack_id_pk PRIMARY KEY (brack_id),
+   CONSTRAINT blueprint_id_fk FOREIGN KEY (blueprint_id)
+      REFERENCES akraino.blueprint (blueprint_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+   CONSTRAINT grack_id_fk FOREIGN KEY (grack_id)
+      REFERENCES akraino.genericrack (grack_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.blueprint_rack
+  OWNER TO postgres;   
+
+CREATE TABLE akraino.edgenode
+(
+   edgenode_id bigint not NULL, 
+   edgenode_name text not NULL,
+   brack_id bigint null,
+   hardware_id bigint null,
+   CONSTRAINT edgenode_id_pk PRIMARY KEY (edgenode_id),
+   CONSTRAINT brack_id_fk FOREIGN KEY (brack_id)
+      REFERENCES akraino.blueprint_rack (brack_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+	CONSTRAINT hardware_id_fk FOREIGN KEY (hardware_id)
+      REFERENCES akraino.hardware (hardware_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION  
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.edgenode
+  OWNER TO postgres;   
+
+
+CREATE TABLE akraino.edgenode_software
+(
+   edgenode_id bigint not NULL, 
+   software_id bigint not NULL,
+
+   CONSTRAINT edgenode_id_fk FOREIGN KEY (edgenode_id)
+      REFERENCES akraino.edgenode (edgenode_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+	CONSTRAINT software_id_fk FOREIGN KEY (software_id)
+      REFERENCES akraino.software (software_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION  
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.edgenode_software
+  OWNER TO postgres;  
+  
   
 CREATE TABLE akraino.usersession
 (
@@ -115,21 +252,27 @@ CREATE TABLE akraino.edge_site
    output_yaml_file_21 bytea NULL,
    output_yaml_file_22 bytea NULL,
    output_yaml_file_23 bytea NULL,
+   output_yaml_file_24 bytea NULL,
    build_status text NULL, 
    build_dt timestamptz NULL,
-   deploy_createtar_status text NULL,    
-   deploy_genesisnodestatus_status text NULL,    
-   deploy_deploytoolstatus_status text NULL,    
+   multinode_createtar_status text NULL,    
+   multinode_genesisnode_status text NULL,    
+   multinode_deploytool_status text NULL,  
+   multinode_transferfile_status text NULL, 
    deploy_status text NULL,  
    onap_status text NULL,
    tempest_status text NULL,
    vcdn_status text NULL,
    deploy_dt timestamptz NULL,
-   crt_dt timestamptz NOT NULL, 
-   crt_login_id text NOT NULL, 
-   upd_dt timestamptz NOT NULL, 
-   upd_login_id text NOT NULL, 
+   crt_dt timestamptz NULL, 
+   crt_login_id text NULL, 
+   upd_dt timestamptz NULL, 
+   upd_login_id text NULL, 
    region_id bigint NOT NULL,
+   deploy_mode text NULL,
+   singlenode_createyaml_status text NULL,
+   singlenode_transferfile_status text NULL,
+   singlenode_deploy_status text NULL,
    CONSTRAINT edge_site_id_pk PRIMARY KEY (edge_site_id),
    CONSTRAINT region_id_fk FOREIGN KEY (region_id)
       REFERENCES akraino.region (region_id) MATCH SIMPLE
@@ -144,30 +287,30 @@ ALTER TABLE akraino.edge_site
   OWNER TO postgres;
   
  
-CREATE TABLE akraino.edge_site_input_yaml_files
+CREATE TABLE akraino.edge_site_template_file
 (   
-   id bigint NOT NULL,
-   input_yaml_file_name text NOT NULL,
-   input_yaml_file_location text NOT NULL,
-   input_yaml_file_content bytea NOT NULL,
-   crt_dt timestamptz NOT NULL, 
-   crt_login_id text NOT NULL, 
-   upd_dt timestamptz NOT NULL, 
-   upd_login_id text NOT NULL,
-	CONSTRAINT edge_site_yaml_id_pk PRIMARY KEY (id)   
+   yamltemplate_id bigint NOT NULL,
+   template_file_name text NOT NULL,
+   template_file_location text NOT NULL,
+   template_file_content bytea NOT NULL,
+   crt_dt timestamptz NULL, 
+   crt_login_id text NULL, 
+   upd_dt timestamptz NULL, 
+   upd_login_id text NULL,
+   CONSTRAINT edge_site_yaml_id_pk PRIMARY KEY (yamltemplate_id)   
 )
 WITH (
   OIDS = FALSE
 )
 ;
-ALTER TABLE akraino.edge_site_input_yaml_files
+ALTER TABLE akraino.edge_site_template_file
   OWNER TO postgres;
 ;
 
 CREATE TABLE akraino.onap
 (
    onap_id bigint not NULL, 
-   edge_site_name text NOT NULL, 
+   edge_site_id bigint NOT NULL, 
    input_file bytea NULL,
    public_net_name text NULL, 
    public_subnet_cidr text NULL, 
@@ -180,7 +323,10 @@ CREATE TABLE akraino.onap
    http_proxy text NULL, 
    https_proxy text NULL, 
    no_proxy text null,
-   CONSTRAINT onap_id_pk PRIMARY KEY (onap_id)
+   CONSTRAINT onap_id_pk PRIMARY KEY (onap_id),
+   CONSTRAINT edge_site_id_fk FOREIGN KEY (edge_site_id)
+      REFERENCES akraino.edge_site (edge_site_id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
 ) 
 WITH (
   OIDS = FALSE
@@ -189,66 +335,92 @@ WITH (
 ALTER TABLE akraino.onap
   OWNER TO postgres;
   
+CREATE TABLE akraino.podmetrics
+(
+   podmetrics_id bigint not NULL, 
+   tstart timestamptz not NULL,
+   tstop timestamptz not null,
+   name text not NULL, 
+   gen_type text null,
+   chomp_log text null,
+   logcount int null,
+   latency text null,
+   latency_max float null,
+   latency_min float null,
+   latency_avg float null,
+   CONSTRAINT podmetrics_id_pk PRIMARY KEY (podmetrics_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.pod
+  OWNER TO postgres; 
+
+CREATE TABLE akraino.podmetrics_logs
+(
+   podmetrics_logs_id bigint not NULL, 
+   tstart timestamptz not NULL,
+   tstop timestamptz not null,
+   signature text NULL, 
+   sysdata_pod text NULL, 
+   sysdata_host text NULL, 
+   sysdata_namespace text NULL, 
+   metadata_pod text NULL, 
+   metadata_latency text NULL, 
+   metadata_namespace text NULL, 
+   CONSTRAINT podmetrics_logs_id_pk PRIMARY KEY (podmetrics_logs_id)
+) 
+WITH (
+  OIDS = FALSE
+)
+;
+ALTER TABLE akraino.pod
+  OWNER TO postgres;
+  
 CREATE SEQUENCE akraino.seq_pod
   START WITH 1 INCREMENT BY 1;
 
-  CREATE SEQUENCE akraino.seq_rack
-  START WITH 1 INCREMENT BY 1;
-  
-  CREATE SEQUENCE akraino.seq_onap
+CREATE SEQUENCE akraino.seq_rack
   START WITH 1 INCREMENT BY 1;
 
+CREATE SEQUENCE akraino.seq_brack
+  START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE akraino.seq_node
+  START WITH 1 INCREMENT BY 1;
+  
+CREATE SEQUENCE akraino.seq_software
+  START WITH 1 INCREMENT BY 1;  
+
+CREATE SEQUENCE akraino.seq_hardware
+  START WITH 1 INCREMENT BY 1;  
+  
+CREATE SEQUENCE akraino.seq_onap
+  START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE akraino.seq_blueprint  
+  START WITH 1 INCREMENT BY 1;
+  
+CREATE SEQUENCE akraino.seq_edgeNode
+  START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE akraino.seq_yamltemplate
+  START WITH 1 INCREMENT BY 1;  
+  
+CREATE SEQUENCE akraino.seq_site
+  START WITH 3 INCREMENT BY 1;  
+
+CREATE SEQUENCE akraino.seq_podmetrics
+  START WITH 1 INCREMENT BY 1;  
+
+CREATE SEQUENCE akraino.seq_podmetrics_logs
+  START WITH 1 INCREMENT BY 1;  
+  
 insert into akraino.region values(1, 'US Northeast', now(), user, now(), user);
 
 insert into akraino.edge_site( edge_site_id, edge_site_name, crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(1, 'MTN1', user,  now(), user, now(),1);
 insert into akraino.edge_site( edge_site_id, edge_site_name,  crt_login_id, crt_dt, upd_login_id, upd_dt, region_id) values(2, 'MTN2', user,  now(), user, now(),1);
 
-
-insert into akraino.edge_site_input_yaml_files values (1, 'site-definition', '/',bytea(pg_read_file('site-definition.j2')), now(), user, now(), user);
-
-
-insert into akraino.edge_site_input_yaml_files values (2, 'bootaction-sriov-blacklist', '/baremetal/', bytea(pg_read_file('baremetal/bootaction-sriov-blacklist.j2')), now(), user, now(), user);
---insert into akraino.edge_site_input_yaml_files values (3, 'calico-ip-rules', '/baremetal/',bytea(pg_read_file('baremetal/calico-ip-rules.j2')), now(), user, now(), user);
-insert into akraino.edge_site_input_yaml_files values (4, 'promjoin', '/baremetal/',bytea(pg_read_file('baremetal/promjoin.j2')), now(), user, now(), user);
-insert into akraino.edge_site_input_yaml_files values (5, 'rack', '/baremetal/',bytea(pg_read_file('baremetal/rack.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (6, 'common-addresses', '/networks/',bytea(pg_read_file('networks/common-addresses.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (7, 'rack', '/networks/physical/',bytea(pg_read_file('networks/physical/rack.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (8, 'pki-catalog', '/pki/',bytea(pg_read_file('pki/pki-catalog.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (9, 'region', '/profiles/',bytea(pg_read_file('profiles/region.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (10, 'generic', '/profiles/hardware/',bytea(pg_read_file('profiles/hardware/generic.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (11, 'compute-r01', '/profiles/host/',bytea(pg_read_file('profiles/host/compute-r01.j2')), now(), user, now(), user);
-insert into akraino.edge_site_input_yaml_files values (12, 'cp-r01', '/profiles/host/',bytea(pg_read_file('profiles/host/cp-r01.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (13, 'ipmi_admin_password', '/secrets/passphrases/',bytea(pg_read_file('secrets/passphrases/ipmi_admin_password.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (14, 'localadmin_ssh_public_key', '/secrets/publickey/',bytea(pg_read_file('secrets/publickey/localadmin_ssh_public_key.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (15, 'calico', '/software/charts/kubernetes/container-networking/',bytea(pg_read_file('software/charts/kubernetes/container-networking/calico.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (16, 'etcd', '/software/charts/kubernetes/container-networking/',bytea(pg_read_file('software/charts/kubernetes/container-networking/etcd.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (17, 'etcd', '/software/charts/kubernetes/etcd/',bytea(pg_read_file('software/charts/kubernetes/etcd/etcd.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (18, 'ingress', '/software/charts/kubernetes/ingress/',bytea(pg_read_file('software/charts/kubernetes/ingress/ingress.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (19, 'neutron', '/software/charts/osh/openstack-compute-kit/',bytea(pg_read_file('software/charts/osh/openstack-compute-kit/neutron.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (20, 'nova', '/software/charts/osh/openstack-compute-kit/',bytea(pg_read_file('software/charts/osh/openstack-compute-kit/nova.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (21, 'ceph-update', '/software/charts/ucp/ceph/',bytea(pg_read_file('software/charts/ucp/ceph/ceph-update.j2')), now(), user, now(), user);
-
-insert into akraino.edge_site_input_yaml_files values (22, 'ceph', '/software/charts/ucp/ceph/',bytea(pg_read_file('software/charts/ucp/ceph/ceph.j2')), now(), user, now(), user);
-
-
-insert into akraino.edge_site_input_yaml_files values (23, 'promenade', '/software/charts/ucp/promenade/',bytea(pg_read_file('software/charts/ucp/promenade/promenade.j2')), now(), user, now(), user);
-
-
 commit;
-
 
